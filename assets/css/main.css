@@ -78,7 +78,7 @@ main {
 .banana {
     background: url("../img/banana.png") center no-repeat;
     background-size: contain;
-    animation: rotate 0.00001s linear infinite;
+    animation: rotate 0.013s linear infinite;
 }
 
 @keyframes rotate {
