@@ -65,20 +65,20 @@ class Fruit extends Drawable {
     }
 
     update() {
-        if(this.isCollision(this.game.player)) this.takePoint();
-        if(this.y > window.innerHeight) this.takeDamage()
+        if (this.isCollision(this.game.player)) this.takePoint();
+        if (this.y > window.innerHeight) this.takeDamage()
         super.update();
     }
 
     takePoint() {
-        if(this.game.remove(this)) {
+        if (this.game.remove(this)) {
             this.removeElement()
             this.game.points++;
         }
     }
 
     takeDamage() {
-        if(this.game.remove(this)) {
+        if (this.game.remove(this)) {
             this.removeElement()
             this.game.hp--;
         }
@@ -115,10 +115,13 @@ class Player extends Drawable {
         this.x = window.innerWidth / 2 - this.w / 2;
         this.x = window.innerWidth / 2 - this.w / 2;
         this.y = window.innerHeight - this.h;
-        this.speadPerFrame =20
+        this.speadPerFrame = 20;
+        this.skillTimer = 0;
+        this.couldTimer = 0;
         this.keys = {
             ArrowLeft: false,
             ArrowRight: false,
+            Space: false
         }
         this.createElement();
         this.bindKeyEvents()
@@ -130,14 +133,40 @@ class Player extends Drawable {
     }
 
     changeKeyStatus(code, value) {
-        if(code in this.keys) this.keys[code] = value;
+        if (code in this.keys) this.keys[code] = value;
     }
 
     update() {
-        if(this.keys.ArrowLeft && this.x > 0) this.offsets.x = -this.speadPerFrame
-        else if(this.keys.ArrowRight && this.x < window.innerWidth - this.w) this.offsets.x = this.speadPerFrame
-        else this.offsets.x = 0
+        if (this.keys.ArrowLeft && this.x > 0) this.offsets.x = -this.speadPerFrame
+        else if (this.keys.ArrowRight && this.x < window.innerWidth - this.w) this.offsets.x = this.speadPerFrame
+        else this.offsets.x = 0;
+        if (this.keys.Space && this.couldTimer === 0) {
+            this.skillTimer++;
+            $('#skill').innerHTML = `осталось ${Math.ceil((240 - this.skillTimer) / 60)};`
+            this.appLySkill()
+        }
+        if (this.skillTimer > 240 || (!this.skillTimer > 1)) {
+            this.couldTimer++;
+            $('#skill').innerHTML = `осталось ${Math.ceil((300 - this.skillTimer) / 60)};`
+            this.keys.Space = false;
+        }
+
+        if (this.couldTimer > 300) {
+            this.couldTimer = 0;
+            this.skillTimer = 0;
+            $('#skill').innerHTML = 'готово';
+        }
         super.update()
+    }
+
+    appLySkill() {
+        for (let i = 1; i < this.game.elements.length; i++) {
+            if (this.game.elements[i].x < this.x + (this.w / 2)) {
+                this.game.elements[i].x += 15;
+            } else if (this.game.elements[i].x > this.x + (this.w / 2)) {
+                this.game.elements[i].x -= 15;
+            }
+        }
     }
 }
 
@@ -156,9 +185,12 @@ class Game {
             s1: 0,
             s2: 0
         };
+        this.ended = false;
+        this.pause = false;
+        this.keyEvents();
     }
 
-    start () {
+    start() {
         this.loop();
     }
 
@@ -168,21 +200,36 @@ class Game {
         return element;
     }
 
+    keyEvents() {
+        addEventListener('keydown', ev => {
+            if (ev.code === "Escape") this.pause = !this.pause;
+        })
+    }
+
     loop() {
         requestAnimationFrame(() => {
-            this.counterForTimer++;
-            if(this.counterForTimer % 60 ===0) {
-                this.timer();
-                this.randomFruitGenerate();
+            if (!this.pause) {
+                this.counterForTimer++;
+                if (this.counterForTimer % 60 === 0) {
+                    this.timer();
+                    this.randomFruitGenerate();
+                }
+                if (this.hp < 0) {
+                    this.end();
+                }
+                $('.pause').style.display = 'none';
+                this.updateElements();
+                this.setParams();
+
+            }  else if (this.pause) {
+                $('.pause').style.display = 'flex';
             }
-            this.updateElements();
-            this.setParams();
-            this.loop();
+            if (!this.ended) this.loop();
         });
     }
 
     randomFruitGenerate() {
-        this.generate(this.fruits[random(0,2)])
+        this.generate(this.fruits[random(0, 2)]);
     }
 
     updateElements() {
@@ -202,9 +249,9 @@ class Game {
     }
 
     remove(el) {
-        let idx = this.elements.indexOf(el)
-        if(idx !== -1) {
-            this.elements.splice(idx, 1)
+        let idx = this.elements.indexOf(el);
+        if (idx !== -1) {
+            this.elements.splice(idx, 1);
             return true;
         }
         return false;
@@ -213,18 +260,35 @@ class Game {
     timer() {
         let time = this.time;
         time.s2++;
-        if(time.s2 >= 10) {
+        if (time.s2 >= 10) {
             time.s2 = 0;
             time.s1++;
         }
-        if(time.s1 >= 6) {
+        if (time.s1 >= 6) {
             time.s1 = 0;
             time.m2++;
         }
-        if(time.m2 >= 10) {
+        if (time.m2 >= 10) {
             time.m2 = 0;
             time.m1++;
         }
         $(`#timer`).innerHTML = `${time.m1}${time.m2}:${time.s1}${time.s2}`;
+    }
+
+    end() {
+        this.ended = true;
+        let time = this.time;
+        if (time.s1 >= 1 || time.m2 >= 1 || time.m1 > -1 && this.points >= 5) {
+            $('#playerName').innerHTML = `Пощл, ${this.name}!`;
+            $('#endTime').innerHTML = `dfit dhtvz  ${time.m1}${time.m2}:${time.s1}${time.s2}`;
+            $('#collectedFruits').innerHTML = `Вы собрали ${this.points} фруктов`;
+            $(`#congratulation`).innerHTML = `Dsla`;
+        } else {
+            $('#playerName').innerHTML = `;жаль, ${this.name}!`;
+            $('#endTime').innerHTML = `Ваше время  ${time.m1}${time.m2}:${time.s1}${time.s2};`
+            $('#collectedFruits').innerHTML = `Вы собрали ${this.points} фруктов`
+            $(`#congratulation`).innerHTML = `вы проиграли`;
+        }
+        go('end', 'panel d-flex justify-content-center align-items-center')
     }
 }
